@@ -48,6 +48,7 @@ type Agent struct {
 	keys                      []gossh.PublicKey                                     // SSH public keys
 	smartManager              *SmartManager                                         // Manages SMART data
 	systemdManager            *systemdManager                                       // Manages systemd services
+	zfsStats                  *system.ZFSStats                                      // Current ZFS stats
 }
 
 // NewAgent creates a new agent with the given data directory for persisting data.

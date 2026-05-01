@@ -4,6 +4,7 @@ package system
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/henrygd/beszel/internal/entities/container"
@@ -50,6 +51,7 @@ type Stats struct {
 	CpuCoresUsage     Uint8Slice           `json:"cpus,omitempty" cbor:"34,keyasint,omitempty"` // per-core busy usage [CPU0..]
 	DiskIoStats       [6]float64           `json:"dios,omitzero" cbor:"35,keyasint,omitzero"`   // [read time %, write time %, io utilization %, r_await ms, w_await ms, weighted io %]
 	MaxDiskIoStats    [6]float64           `json:"diosm,omitzero" cbor:"-"`                     // max values for DiskIoStats
+	ZFS               *ZFSStats            `json:"zfs,omitempty" cbor:"36,keyasint,omitempty"`  // ZFS statistics
 }
 
 // Uint8Slice wraps []uint8 to customize JSON encoding while keeping CBOR efficient.
@@ -179,4 +181,56 @@ type CombinedData struct {
 	Containers      []*container.Stats `json:"container" cbor:"2,keyasint"`
 	SystemdServices []*systemd.Service `json:"systemd,omitempty" cbor:"3,keyasint,omitempty"`
 	Details         *Details           `cbor:"4,keyasint,omitempty"`
+}
+
+// ZFSStats contains all ZFS-related statistics
+type ZFSStats struct {
+	Arc      *ZFSArcStats           `json:"arc,omitempty" cbor:"0,keyasint,omitempty"`
+	Pools    map[string]*ZFSPool    `json:"pools,omitempty" cbor:"1,keyasint,omitempty"`
+	Datasets map[string]*ZFSDataset `json:"datasets,omitempty" cbor:"2,keyasint,omitempty"`
+}
+
+// ZFSArcStats contains ARC memory statistics
+type ZFSArcStats struct {
+	Size         uint64 `json:"size" cbor:"0,keyasint"`   // current ARC size in bytes
+	Max          uint64 `json:"max" cbor:"1,keyasint"`    // max ARC size
+	Min          uint64 `json:"min" cbor:"2,keyasint"`    // min ARC size
+	Hits         uint64 `json:"hits" cbor:"3,keyasint"`   // cache hits
+	Misses       uint64 `json:"misses" cbor:"4,keyasint"` // cache misses
+	Uncompressed uint64 `json:"unc" cbor:"11,keyasint"`   // uncompressed
+	Compressed   uint64 `json:"comp" cbor:"12,keyasint"`  // compressed
+}
+
+// ZFSPool contains pool-level metrics
+type ZFSPool struct {
+	Name       string `json:"-"`                        // pool name (not serialized)
+	Size       uint64 `json:"size" cbor:"0,keyasint"`   // total pool size
+	Used       uint64 `json:"used" cbor:"1,keyasint"`   // used space
+	ReadBytes  uint64 `json:"rbytes" cbor:"4,keyasint"` // total read bytes
+	WriteBytes uint64 `json:"wbytes" cbor:"5,keyasint"` // total write bytes
+	ReadOps    uint64 `json:"rops" cbor:"6,keyasint"`   // total read operations
+	WriteOps   uint64 `json:"wops" cbor:"7,keyasint"`   // total write operations
+	State      string `json:"state" cbor:"11,keyasint"` // pool state
+}
+
+type ZFSScan struct {
+	Function string `json:"function" cbor:"0,keyasint"`
+	State    string `json:"state" cbor:"1,keyasint"`
+	Start    string `json:"start" cbor:"2,keyasint"`
+	End      string `json:"end" cbor:"3,keyasint"`
+}
+
+// ZFSDataset contains dataset/filesystem metrics
+type ZFSDataset struct {
+	Pool          string  `json:"pool" cbor:"0,keyasint"`   // parent pool
+	Name          string  `json:"name" cbor:"1,keyasint"`   // dataset name
+	Used          uint64  `json:"used" cbor:"2,keyasint"`   // used space
+	Available     uint64  `json:"avail" cbor:"3,keyasint"`  // available space
+	Refer         uint64  `json:"refer" cbor:"4,keyasint"`  // referenced space (includes snapshots)
+	CompressRatio float64 `json:"cratio" cbor:"5,keyasint"` // compression ratio
+	Type          string  `json:"type" cbor:"6,keyasint"`   // filesystem/snapshot/volume
+}
+
+func (d ZFSDataset) String() string {
+	return fmt.Sprintf("%s %d %d %d %s", d.Name, d.Used, d.Available, d.Refer, d.Type)
 }

@@ -99,9 +99,9 @@ func (a *Agent) refreshSystemDetails() {
 		}
 	}
 
-	// zfs
+	// zfs - check for zpool command availability
 	if _, err := zfs.ARCSize(); err != nil {
-		slog.Debug("Not monitoring ZFS ARC", "err", err)
+		slog.Debug("Not monitoring ZFS", "err", err)
 	} else {
 		a.zfs = true
 	}
@@ -249,6 +249,11 @@ func (a *Agent) getSystemStats(cacheTimeMs uint16) system.Stats {
 		}
 	}
 
+	// ZFS stats
+	if a.zfs {
+		a.updateZFSStats(cacheTimeMs, &systemStats)
+	}
+
 	// update system info
 	a.systemInfo.ConnectionType = a.connectionManager.ConnectionType
 	a.systemInfo.Cpu = systemStats.Cpu
@@ -282,4 +287,17 @@ func getOsPrettyName() (string, error) {
 	}
 
 	return "", errors.New("pretty name not found")
+}
+
+// updateZFSStats collects and updates ZFS statistics
+func (a *Agent) updateZFSStats(cacheTimeMs uint16, systemStats *system.Stats) {
+	// Get current ZFS stats (includes raw cumulative counters)
+	zfsStats, err := zfs.GetZFSStats()
+	if err != nil {
+		slog.Debug("Error getting ZFS stats", "err", err)
+		return
+	}
+
+	a.zfsStats = zfsStats
+	systemStats.ZFS = zfsStats
 }

@@ -151,6 +151,81 @@ export interface SystemStats {
 	bat?: [number, BatteryState]
 	/** network interfaces [upload bytes, download bytes, total upload bytes, total download bytes] */
 	ni?: Record<string, [number, number, number, number]>
+	/** ZFS statistics */
+	zfs?: ZFSStats
+}
+
+export interface ZFSStats {
+	arc?: ZFSArcStats
+	pools?: Record<string, ZFSPool>
+	datasets?: Record<string, ZFSDataset>
+	kstat?: Record<string, number>
+}
+
+export interface ZFSArcStats {
+	size: number
+	max: number
+	min: number
+	hits: number
+	misses: number
+	dhits: number
+	dmiss: number
+	phits: number
+	pmiss: number
+	cmax: number
+	csize: number
+	unc: number
+	comp: number
+}
+
+export interface ZFSPool {
+	size: number
+	used: number
+	avail: number
+	free: number
+	rbytes: number
+	wbytes: number
+	rops: number
+	wops: number
+	reerr: number
+	weerr: number
+	cerr: number
+	state: string
+	topo?: ZFSTopology[]
+	scrub?: ZFSScrub
+}
+
+export interface ZFSTopology {
+	type: string
+	name: string
+	devs?: ZFSDevice[]
+	children?: ZFSTopology[]
+}
+
+export interface ZFSDevice {
+	name: string
+	state: string
+	reerr: number
+	weerr: number
+	cerr: number
+}
+
+export interface ZFSScrub {
+	ts: number
+	dur: number
+	err: number
+	reads?: number
+	writes?: number
+}
+
+export interface ZFSDataset {
+	pool: string
+	name: string
+	used: number
+	avail: number
+	refer: number
+	cratio: number
+	type: string
 }
 
 export interface GPUData {

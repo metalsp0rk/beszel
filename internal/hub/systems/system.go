@@ -231,6 +231,13 @@ func (sys *System) createRecords(data *system.CombinedData) (*core.Record, error
 			}
 		}
 
+		// add zfs_stats records
+		if data.Stats.ZFS != nil {
+			if err := createZFSStatsRecords(txApp, data.Stats.ZFS, sys.Id); err != nil {
+				return err
+			}
+		}
+
 		// add system details record
 		if data.Details != nil {
 			if err := createSystemDetailsRecord(txApp, data.Details, sys.Id); err != nil {
@@ -306,6 +313,58 @@ func createSystemdStatsRecords(app core.App, data []*systemd.Service, systemId s
 	return err
 }
 
+// createZFSStatsRecords creates ZFS stats records for each subtype
+func createZFSStatsRecords(app core.App, data *system.ZFSStats, systemId string) error {
+	if data == nil {
+		return nil
+	}
+
+	zfsStatsCollection, err := app.FindCachedCollectionByNameOrId("zfs_stats")
+	if err != nil {
+		return err
+	}
+
+	// Create ARC stats record
+	if data.Arc != nil {
+		record := core.NewRecord(zfsStatsCollection)
+		record.Set("system", systemId)
+		record.Set("subtype", "arc")
+		record.Set("stats", data.Arc)
+		record.Set("type", "1m")
+		if err := app.SaveNoValidate(record); err != nil {
+			return err
+		}
+	}
+
+	// Create pool stats records
+	for name, pool := range data.Pools {
+		record := core.NewRecord(zfsStatsCollection)
+		record.Set("system", systemId)
+		record.Set("subtype", "pool")
+		record.Set("name", name)
+		record.Set("stats", pool)
+		record.Set("type", "1m")
+		if err := app.SaveNoValidate(record); err != nil {
+			return err
+		}
+	}
+
+	// Create dataset stats records
+	for name, ds := range data.Datasets {
+		record := core.NewRecord(zfsStatsCollection)
+		record.Set("system", systemId)
+		record.Set("subtype", "dataset")
+		record.Set("name", name)
+		record.Set("stats", ds)
+		record.Set("type", "1m")
+		if err := app.SaveNoValidate(record); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // createContainerRecords creates container records
 func createContainerRecords(app core.App, data []*container.Stats, systemId string) error {
 	if len(data) == 0 {
@@ -362,7 +421,7 @@ func (sys *System) HasUser(app core.App, user *core.Record) bool {
 	if v, _ := utils.GetEnv("SHARE_ALL_SYSTEMS"); v == "true" {
 		return true
 	}
-	var recordData = struct {
+	recordData := struct {
 		Users string
 	}{}
 	err := app.DB().NewQuery("SELECT users FROM systems WHERE id={:id}").
