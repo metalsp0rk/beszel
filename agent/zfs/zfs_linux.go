@@ -253,7 +253,7 @@ type poolIO struct {
 
 // getDatasets returns list of ZFS datasets
 func getDatasets() ([]*system.ZFSDataset, error) {
-	cmd := exec.Command("zfs", "list", "-H", "-p", "-o", "name,used,available,referenced,type")
+	cmd := exec.Command("zfs", "list", "-H", "-p", "-o", "name,used,available,referenced,type,compressratio")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -271,7 +271,9 @@ func getDatasets() ([]*system.ZFSDataset, error) {
 		if len(fields) < 2 {
 			continue
 		}
+
 		ds := &system.ZFSDataset{
+			Pool: strings.Split(string(fields[0]), "/")[0],
 			Name: fields[0],
 		}
 		if len(fields) > 1 {
@@ -285,6 +287,9 @@ func getDatasets() ([]*system.ZFSDataset, error) {
 		}
 		if len(fields) > 4 {
 			ds.Type = fields[4]
+		}
+		if len(fields) > 5 {
+			ds.CompressRatio, _ = strconv.ParseFloat(fields[5], 64)
 		}
 		datasets = append(datasets, ds)
 	}
