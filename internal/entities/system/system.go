@@ -199,25 +199,38 @@ type ZFSArcStats struct {
 	Misses       uint64 `json:"misses" cbor:"4,keyasint"` // cache misses
 	Uncompressed uint64 `json:"unc" cbor:"11,keyasint"`   // uncompressed
 	Compressed   uint64 `json:"comp" cbor:"12,keyasint"`  // compressed
+	// L2ARC (SSD cache) - the must-haves
+	L2Size       uint64 `json:"l2_size" cbor:"20,keyasint"`  // current on-disk size
+	L2ASize      uint64 `json:"l2_asize" cbor:"21,keyasint"` // actual compressed size on disk
+	L2Hits       uint64 `json:"l2_hits" cbor:"22,keyasint"`
+	L2Misses     uint64 `json:"l2_misses" cbor:"23,keyasint"`
+	L2ReadBytes  uint64 `json:"l2_read_bytes" cbor:"24,keyasint"`
+	L2WriteBytes uint64 `json:"l2_write_bytes" cbor:"25,keyasint"`
+	L2HdrSize    uint64 `json:"l2_hdr_size" cbor:"26,keyasint"` // RAM overhead for L2ARC metadata
 }
 
 // ZFSPool contains pool-level metrics
 type ZFSPool struct {
-	Name       string `json:"-"`                        // pool name (not serialized)
-	Size       uint64 `json:"size" cbor:"0,keyasint"`   // total pool size
-	Used       uint64 `json:"used" cbor:"1,keyasint"`   // used space
-	ReadBytes  uint64 `json:"rbytes" cbor:"4,keyasint"` // total read bytes
-	WriteBytes uint64 `json:"wbytes" cbor:"5,keyasint"` // total write bytes
-	ReadOps    uint64 `json:"rops" cbor:"6,keyasint"`   // total read operations
-	WriteOps   uint64 `json:"wops" cbor:"7,keyasint"`   // total write operations
-	State      string `json:"state" cbor:"11,keyasint"` // pool state
+	Name        string  `json:"-"`                        // pool name (not serialized)
+	Size        uint64  `json:"size" cbor:"0,keyasint"`   // total pool size
+	Used        uint64  `json:"used" cbor:"1,keyasint"`   // used space
+	ReadBytes   uint64  `json:"rbytes" cbor:"4,keyasint"` // total read bytes
+	WriteBytes  uint64  `json:"wbytes" cbor:"5,keyasint"` // total write bytes
+	ReadOps     uint64  `json:"rops" cbor:"6,keyasint"`   // total read operations
+	WriteOps    uint64  `json:"wops" cbor:"7,keyasint"`   // total write operations
+	State       string  `json:"state" cbor:"11,keyasint"` // pool state
+	CksumErrors uint64  `json:"checksum_errors" cbor:"12,keyasint"`
+	Scan        ZFSScan `json:"scan" cbor:"13,keyasint"`
 }
 
 type ZFSScan struct {
-	Function string `json:"function" cbor:"0,keyasint"`
-	State    string `json:"state" cbor:"1,keyasint"`
-	Start    string `json:"start" cbor:"2,keyasint"`
-	End      string `json:"end" cbor:"3,keyasint"`
+	Type      string `json:"type" cbor:"0,keyasint"`
+	State     string `json:"state" cbor:"1,keyasint"`
+	Start     int64  `json:"start_u" cbor:"2,keyasint"`
+	Size      uint64 `json:"size" cbor:"3,keyasint"`
+	Completed uint64 `json:"completed" cbor:"4,keyasint"`
+	Skipped   uint64 `json:"skipped" cbor:"5,keyasint"`
+	End       int64  `json:"end_u" cbor:"6,keyasint"`
 }
 
 // ZFSDataset contains dataset/filesystem metrics

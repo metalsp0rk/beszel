@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // GetEnv retrieves an environment variable with a "BESZEL_AGENT_" prefix, or falls back to the unprefixed key.
@@ -19,6 +20,30 @@ func GetEnv(key string) (value string, exists bool) {
 		return value, exists
 	}
 	return os.LookupEnv(key)
+}
+
+func ParseDateString(s string) (int64, error) {
+	s = strings.TrimSpace(s)
+	// Empty string or null (from parse) should return a zero value.
+	if s == "" || s == "null" {
+		return 0, nil
+	}
+
+	// Primary layout with timezone
+	layout := "Mon Jan 2 15:04:05 MST 2006"
+	t, err := time.Parse(layout, s)
+	if err == nil {
+		return t.Unix(), nil
+	}
+
+	// Fallback without timezone
+	layout = "Mon Jan 2 15:04:05 2006"
+	t, err = time.Parse(layout, s)
+	if err == nil {
+		return t.Unix(), nil
+	}
+
+	return 0, err
 }
 
 // BytesToMegabytes converts bytes to megabytes and rounds to two decimal places.

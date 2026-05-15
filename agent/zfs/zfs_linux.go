@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/henrygd/beszel/agent/utils"
 	"github.com/henrygd/beszel/internal/entities/system"
 )
 
@@ -105,6 +106,20 @@ func getARCStats() (*system.ZFSArcStats, error) {
 			stats.Compressed = value
 		case "uncompressed_size":
 			stats.Uncompressed = value
+		case "l2_size":
+			stats.L2Size = value
+		case "l2_asize":
+			stats.L2ASize = value
+		case "l2_hits":
+			stats.L2Hits = value
+		case "l2_misses":
+			stats.L2Misses = value
+		case "l2_read_bytes":
+			stats.L2ReadBytes = value
+		case "l2_write_bytes":
+			stats.L2WriteBytes = value
+		case "l2_hdr_size":
+			stats.L2HdrSize = value
 		}
 	}
 	return stats, nil
@@ -133,13 +148,13 @@ type ZPoolRaw struct {
 }
 
 type VDevRaw struct {
-	AllocSpace     string `json:"alloc_space"`
-	TotalSpace     string `json:"total_space"`
-	DefSpace       string `json:"def_space"` // sometimes used for "deflated" size
-	ReadErrors     string `json:"read_errors"`
-	WriteErrors    string `json:"write_errors"`
-	ChecksumErrors string `json:"checksum_errors"`
-	// no children needed
+	AllocSpace     string             `json:"alloc_space"`
+	TotalSpace     string             `json:"total_space"`
+	DefSpace       string             `json:"def_space"` // sometimes used for "deflated" size
+	ReadErrors     string             `json:"read_errors"`
+	WriteErrors    string             `json:"write_errors"`
+	ChecksumErrors string             `json:"checksum_errors"`
+	VDevs          map[string]VDevRaw `json:"vdevs"`
 }
 
 type ScanStatsRaw struct {
@@ -147,6 +162,9 @@ type ScanStatsRaw struct {
 	State     string `json:"state"`
 	StartTime string `json:"start_time"`
 	EndTime   string `json:"end_time"`
+	Size      uint64 `json:"to_examine"`
+	Done      uint64 `json:"examined"`
+	Skipped   uint64 `json:"skipped"`
 	Errors    string `json:"errors"`
 }
 
@@ -198,12 +216,15 @@ func ParseZPoolStatus() (map[string]*system.ZFSPool, error) {
 			pool.Used = parseSize(root.AllocSpace)
 		}
 
-		pool.CksumErrors = parseUint(raw.ErrorCount)
+		pool.CksumErrors, _ = strconv.ParseUint(raw.ErrorCount, 10, 64)
 
-		// Scan errors (if present)
-		if raw.ScanStats.Errors != "" {
-			pool.CksumErrors += parseUint(raw.ScanStats.Errors)
-		}
+		pool.Scan.Type = raw.ScanStats.Function
+		pool.Scan.State = raw.ScanStats.State
+		pool.Scan.Start, _ = utils.ParseDateString(raw.ScanStats.StartTime)
+		pool.Scan.End, _ = utils.ParseDateString(raw.ScanStats.EndTime)
+		pool.Scan.Size = raw.ScanStats.Size
+		pool.Scan.Completed = raw.ScanStats.Done
+		pool.Scan.Skipped = raw.ScanStats.Skipped
 
 		// IO bytes/ops are not in this JSON (use /proc/spl/kstat for those)
 		// pool.ReadBytes, etc. remain 0
@@ -214,7 +235,7 @@ func ParseZPoolStatus() (map[string]*system.ZFSPool, error) {
 			return nil, err
 		}
 		m := make(map[string]uint64)
-		for _, line := range strings.Split(string(data), "\n") {
+		for line := range strings.SplitSeq(string(data), "\n") {
 			fields := strings.Fields(line)
 			if len(fields) >= 2 {
 				if val, err := strconv.ParseUint(fields[len(fields)-1], 10, 64); err == nil {
@@ -232,23 +253,6 @@ func ParseZPoolStatus() (map[string]*system.ZFSPool, error) {
 	}
 
 	return result, nil
-}
-
-func parseUint(s string) uint64 {
-	v, _ := strconv.ParseUint(s, 10, 64)
-	return v
-}
-
-// poolIO contains I/O stats for a pool
-type poolIO struct {
-	Size       uint64
-	Used       uint64
-	Available  uint64
-	Free       uint64
-	ReadOps    uint64
-	WriteOps   uint64
-	ReadBytes  uint64
-	WriteBytes uint64
 }
 
 // getDatasets returns list of ZFS datasets
